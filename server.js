@@ -10,6 +10,8 @@ import adminrouter from "./routes/adminroute.js";
 import reviewrouter from "./routes/reviewroutes.js";
 import notirouter from "./routes/notificationroute.js";
 import addressrouter from "./routes/addressroute.js";
+import dotenv from "dotenv";
+dotenv.config();
 
 const app = express();
 app.use(cors());

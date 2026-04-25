@@ -44,8 +44,6 @@ export const getRevenueanalytics = async (req, res) => {
       };
     }
 
-    
-
     const analytics = await Order.aggregate([
       { $match: matchStage },
 
@@ -104,79 +102,89 @@ export const getRevenueanalytics = async (req, res) => {
 
 export const getTopProducts = async (req, res) => {
   try {
-    const { startDate, endDate, limit = 5 } = req.query;
-
-    let matchStage = {
-      status: "delivered",
-    };
-
-    if (startDate && endDate) {
-      if (new Date(startDate) > new Date(endDate)) {
-        return res.status(400).json({
-          message: "startDate cannot be greater than endDate",
-        });
-      }
-    }
-
-    // ✅ Flexible date filter
-    if (startDate || endDate) {
-      matchStage.createdAt = {};
-
-      if (startDate) {
-        matchStage.createdAt.$gte = new Date(startDate);
-      }
-
-      if (endDate) {
-        matchStage.createdAt.$lte = new Date(endDate);
-      }
-    }
+    const { limit = 5 } = req.query;
 
     const topProducts = await Order.aggregate([
-      { $match: matchStage },
-
-      { $unwind: "$items" },
-
       {
-        $group: {
-          _id: "$items.product", // ✅ FIXED
-          totalSold: { $sum: "$items.quantity" },
-        },
-      },
-
-      { $sort: { totalSold: -1 } },
-      { $limit: Number(limit) },
-
-      {
-        $lookup: {
-          from: "products",
-          localField: "_id",
-          foreignField: "_id",
-          as: "product",
-        },
+        $match: { status: "delivered" },
       },
 
       {
-        $unwind: {
-          path: "$product",
-          preserveNullAndEmptyArrays: true,
-        },
+        $unwind: "$items",
       },
 
+      // ✅ Convert product to ObjectId (handles string case safely)
       {
         $addFields: {
-          revenue: {
-            $multiply: ["$totalSold", "$product.price"],
+          productObjId: {
+            $cond: {
+              if: { $eq: [{ $type: "$items.product" }, "objectId"] },
+              then: "$items.product",
+              else: { $toObjectId: "$items.product" },
+            },
           },
         },
       },
 
+      // ✅ Lookup product details
+      {
+        $lookup: {
+          from: "products",
+          localField: "productObjId",
+          foreignField: "_id",
+          as: "productData",
+        },
+      },
+
+      // ✅ Convert array → object
+      {
+        $unwind: {
+          path: "$productData",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+
+      // ✅ Group by product
+      {
+        $group: {
+          _id: "$productObjId",
+
+          totalSold: { $sum: "$items.quantity" },
+
+          // ✅ Revenue using product price (fallback 0)
+          revenue: {
+            $sum: {
+              $multiply: [
+                "$items.quantity",
+                { $ifNull: ["$productData.price", 0] },
+              ],
+            },
+          },
+
+          name: { $first: "$productData.name" },
+          price: { $first: "$productData.price" },
+          image: { $first: "$productData.image" },
+        },
+      },
+
+      // ✅ Sort by best selling
+      {
+        $sort: { totalSold: -1 },
+      },
+
+      // ✅ Limit results
+      {
+        $limit: Number(limit),
+      },
+
+      // ✅ Final response format
       {
         $project: {
           _id: 0,
-          productId: "$product._id",
-          name: "$product.name",
-          price: "$product.price",
-          image: "$product.image",
+          productId: "$_id",
+          name: 1,
+          price: 1,
+          image: 1,
           totalSold: 1,
           revenue: 1,
         },

@@ -15,7 +15,7 @@ import {
 import { addCategories,updatecategories,Deletecategories,Getcategories } from "../controllers/admincontroller/categorycontroller.js";
 import{updateOrderStatus,getAllOrders,getOrderanalytics,getOrdersperday,getOrderadminById}from "../controllers/ordercontrollers.js"
 import { Getallreview,DeleteAllreview,Getadminreview } from "../controllers/reviewcontroller.js";
-import { getDashboardData,getRevenueanalytics,getTopProducts } from "../controllers/admincontroller/analyticscontroller.js";
+import { getDashboardData,getRevenueanalytics, } from "../controllers/admincontroller/analyticscontroller.js";
 import { verifyToken, adminOnly } from "../middleware.js";
 import upload from "../uploadmiddleware.js";
 
@@ -57,7 +57,6 @@ adminrouter.delete("/review/:id", verifyToken, adminOnly, DeleteAllreview);
 
 adminrouter.get("/analytics/dashboard", verifyToken, adminOnly, getDashboardData);
 adminrouter.get("/analytics/revenue", verifyToken, adminOnly, getRevenueanalytics);
-adminrouter.get("/analytics/top-products", verifyToken, adminOnly, getTopProducts);
 
 
 
